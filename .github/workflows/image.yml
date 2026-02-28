@@ -29,23 +29,21 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Generate filename
+        id: filename
+        run: |
+          SAFE_IMAGE=$(echo "${{ inputs.image }}" | tr '/:' '_')
+          SAFE_PLATFORM=$(echo "${{ inputs.platform }}" | tr '/' '_')
+          echo "value=${SAFE_IMAGE}_${SAFE_PLATFORM}.tar.gz" >> $GITHUB_OUTPUT
+
       - name: Pull and Save Image
         run: |
           echo "Pulling ${{ inputs.image }} for ${{ inputs.platform }}"
           docker pull --platform=${{ inputs.platform }} "${{ inputs.image }}"
-
-          # 将镜像名和平台名安全化，用于文件名
-          SAFE_IMAGE=$(echo "${{ inputs.image }}" | tr '/:' '_')
-          SAFE_PLATFORM=$(echo "${{ inputs.platform }}" | tr '/' '_')
-          TAR_NAME="${SAFE_IMAGE}_${SAFE_PLATFORM}.tar.gz"
-
-          docker save "${{ inputs.image }}" | gzip > "$TAR_NAME"
-
-          # 设置环境变量供上传使用
-          echo "TAR_NAME=$TAR_NAME" >> $GITHUB_ENV
+          docker save "${{ inputs.image }}" | gzip > "${{ steps.filename.outputs.value }}"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.TAR_NAME }}
-          path: ${{ env.TAR_NAME }}
+          name: image
+          path: ${{ steps.filename.outputs.value }}
